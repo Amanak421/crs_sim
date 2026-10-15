@@ -120,6 +120,34 @@ class Visualizer:
             node.set_transform(np.eye(4) if pose is None
                                else np.asarray(pose, dtype=float))
 
+    def show_mesh(self, name: str, mesh, pose: np.ndarray | None = None,
+                  color: int = 0xb0b0b0, opacity: float = 1.0,
+                  scale: float = 1.0) -> None:
+        """
+        Draw a mesh from a CAD file (STEP/STP, STL, OBJ, PLY, GLB, ...) or a
+        ``trimesh.Trimesh``. Needs the ``step`` extra (trimesh + cascadio).
+        :param name: object name
+        :param mesh: file path or trimesh object
+        :param pose: 4x4 homogeneous matrix of the mesh origin
+        :param color: RGB hex color
+        :param opacity: 0 (invisible) .. 1 (opaque)
+        :param scale: scale of the vertices, e.g. 0.001 for STL in mm (STEP
+            files are converted to meters automatically)
+        """
+        import meshcat.geometry as g
+
+        if not hasattr(mesh, "faces"):
+            mesh = load_mesh(mesh)
+        geometry = g.TriangularMeshGeometry(
+            np.asarray(mesh.vertices, dtype=float) * scale,
+            np.asarray(mesh.faces, dtype=np.uint32))
+        with self._lock:
+            node = self._viz.viewer["objects"][name]
+            node.set_object(geometry, g.MeshLambertMaterial(
+                color=color, opacity=opacity, transparent=opacity < 1))
+            node.set_transform(np.eye(4) if pose is None
+                               else np.asarray(pose, dtype=float))
+
     def delete(self, name: str | None = None) -> None:
         """
         Remove a helper object.
@@ -130,3 +158,20 @@ class Visualizer:
                 self._viz.viewer["objects"].delete()
             else:
                 self._viz.viewer["objects"][name].delete()
+
+
+def load_mesh(path: str | Path):
+    """
+    Load a CAD/mesh file as a single ``trimesh.Trimesh``. STEP files are
+    tessellated by OpenCASCADE (cascadio) and returned in meters.
+    """
+    try:
+        import trimesh
+    except ImportError as e:
+        raise ImportError(
+            "Loading meshes needs the 'step' extra: pip install 'crs-sim[step]'"
+        ) from e
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(path)
+    return trimesh.load(str(path), force="mesh")

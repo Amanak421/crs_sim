@@ -16,11 +16,12 @@ browser window.
 
 ```bash
 git clone <this repo> crs_sim && cd crs_sim
-./setup_venv.sh            # creates .venv, installs crs_sim (editable) + pytest
+./setup_venv.sh            # creates .venv, installs crs_sim (editable) + pytest + STEP support
 source .venv/bin/activate
 ```
 
-`PYTHON=python3.11 ./setup_venv.sh` picks a different interpreter. To use the
+`PYTHON=python3.11 ./setup_venv.sh` picks a different interpreter and
+`EXTRAS=dev ./setup_venv.sh` skips the CAD/STEP support (~100 MB, OpenCASCADE). To use the
 package from another environment (e.g. a conda env), run `pip install -e /path/to/crs_sim`.
 
 Quick start:
@@ -35,8 +36,9 @@ Quick start:
 cannot leak its packages (and pytest plugins) into the venv. If you activate the
 venv manually with ROS sourced, run `unset PYTHONPATH` first.
 
-Dependencies: `numpy`, `pin` (pinocchio) and `meshcat`. The real-robot packages
-(`ctu_crs`, `pypylon`, serial port drivers) are **not** needed.
+Dependencies: `numpy`, `pin` (pinocchio) and `meshcat`; the optional `step` extra
+(`trimesh`, `cascadio`) loads CAD files. The real-robot packages (`ctu_crs`,
+`pypylon`, serial port drivers) are **not** needed.
 
 ## Usage
 
@@ -56,7 +58,43 @@ pose = robot.fk(q)                                   # 4x4 flange pose
 sols = [s for s in robot.ik(pose) if robot.in_limits(s)]
 ```
 
-Run the demo with `./start.sh examples/demo.py`.
+## Examples
+
+Run them with `./start.sh examples/<name>.py`, all take `--help`.
+
+| Example | What it shows |
+| :--- | :--- |
+| `demo.py` | Reach a target pose with IK, draw frames |
+| `puzzle_a.py` | Puzzle A in the workspace, the hoop moved down the wire and back through fixed joint configurations |
+| `show_cad.py [files...]` | Show any STEP/STL/OBJ file in the workspace; without arguments all five puzzles |
+| `draw_circle.py` | Cartesian path following: trace a circle with IK, draw the trail |
+| `joint_sweep.py` | Joint limits table and each joint swept towards its limits |
+| `real_or_sim.py [--real]` | The same control code on the simulator or the real robot |
+
+## Puzzles and CAD files
+
+`crs_sim.puzzles` has the hoop offset `HOOP_IN_FLANGE` (hoop center pose =
+`robot.fk(q) @ HOOP_IN_FLANGE`), `show_puzzle()` to put any of the puzzles A - E
+into the scene, and the wire center line of puzzle A as an example
+(`maze_path("A")`, hoop poses in the maze frame).
+
+The CAD models come from [pilcsimo/ROB1-2025-hw](https://github.com/pilcsimo/ROB1-2025-hw)
+(GPL-3.0). They are **not** included here; `download_puzzles()` fetches them to
+`~/.cache/crs_sim/` on first use.
+
+```python
+from crs_sim import CRS97
+from crs_sim.puzzles import show_puzzle
+from crs_sim.transforms import pose
+
+robot = CRS97()
+show_puzzle(robot.viz, "D", pose([0.45, 0.0, 0.0], yaw=0.5))   # base plate + wire
+robot.viz.show_mesh("part", "my_part.step", pose([0.3, 0.2, 0.0]))
+robot.viz.show_mesh("bracket", "bracket.stl", scale=0.001)       # STL in mm
+```
+
+`crs_sim.transforms` has the small 4x4 helpers used above (`rx`, `ry`, `rz`,
+`translation`, `pose`, `interpolate`, `densify`).
 
 ## Fidelity to the real robot
 
@@ -96,6 +134,7 @@ All of these are keyword arguments of `CRS97(...)`:
 robot.viz.show_points("path", points_nx3, color=0xffa500, radius=0.005)
 robot.viz.show_frame("target", pose_4x4, scale=0.1)
 robot.viz.show_box("table", [1.8, 0.8, 0.02], pose_4x4, opacity=0.3)
+robot.viz.show_mesh("part", "part.step", pose_4x4)   # any CAD file, needs the step extra
 robot.viz.set_camera([1.2, -1.4, 1.0])
 robot.viz.delete("path")      # or robot.viz.delete() for all helper objects
 robot.viz.viewer              # raw meshcat.Visualizer

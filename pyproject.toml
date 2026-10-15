@@ -16,6 +16,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+# CAD files (STEP, STL, ...) in Visualizer.show_mesh
+step = ["trimesh>=4", "cascadio>=0.0.13"]
 
 [tool.setuptools.packages.find]
 include = ["crs_sim*"]
