@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crs-sim"
+version = "0.1.0"
+description = "Standalone MeshCat simulator of the CRS97 arm with the ctu_crs interface"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "pin>=3.0",
+    "meshcat>=0.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["crs_sim*"]
+
+[tool.setuptools.package-data]
+crs_sim = ["urdf/*.urdf", "urdf/meshes/*.stl"]
